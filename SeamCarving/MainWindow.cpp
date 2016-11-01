@@ -1,4 +1,5 @@
 #include "MainWindow.hpp"
+#include <string>
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent)
@@ -64,29 +65,34 @@ void MainWindow::on_pbComputeSeams_clicked()
 void MainWindow::on_pbRemoveSeams_clicked()
 {
     std::cout << originalImage.type() << std::endl;
-    resultImage.create(originalImage.rows, originalImage.cols-1, originalImage.type());
-    std::cout << "create" << std::endl;
-    cv::Point minLoc;
-    cv::minMaxLoc(DPMat.row(DPMat.rows-1), nullptr, nullptr, &minLoc);
-    std::cout << "minmax" << std::endl;
-    int col = minLoc.x;
-    for (int r = DPMat.rows-1; r >= 0; --r)
+    for (int i = 0; i < sbCols->value(); ++i)
     {
-        std::cout << r << std::endl;
-        // originalImage.at<cv::Vec3b>(r, col) = 0;
-        auto row = originalImage.ptr<cv::Vec3b>(r);
-        auto resRow = resultImage.ptr<cv::Vec3b>(r);
-        for (int c = 0; c < col; ++c)
+        on_pbComputeSeams_clicked();
+        resultImage.create(originalImage.rows, originalImage.cols-1, originalImage.type());
+        std::cout << "create" << std::endl;
+        cv::Point minLoc;
+        cv::minMaxLoc(DPMat.row(DPMat.rows-1), nullptr, nullptr, &minLoc);
+        std::cout << "minmax" << std::endl;
+        int col = minLoc.x;
+        for (int r = DPMat.rows-1; r >= 0; --r)
         {
-            resRow[c] = row[c];
-        }
-        for (int c = col+1; c < originalImage.cols; ++c)
-        {
-            resRow[c-1] = row[c];
-        }
+            // std::cout << r << std::endl;
+            // originalImage.at<cv::Vec3b>(r, col) = 0;
+            auto row = originalImage.ptr<cv::Vec3b>(r);
+            auto resRow = resultImage.ptr<cv::Vec3b>(r);
+            for (int c = 0; c < col; ++c)
+            {
+                resRow[c] = row[c];
+            }
+            for (int c = col+1; c < originalImage.cols; ++c)
+            {
+                resRow[c-1] = row[c];
+            }
 
-        col += DPPointers.at<short>(r-1, col);
-        if (r==0) std::cout << "r=0 " << r << " " << col << std::endl;
+            col += DPPointers.at<char>(r-1, col);
+            if (r==0) std::cout << "r=0 " << r << " " << col << std::endl;
+        }
+        if (i != sbCols->value()-1) cv::swap(originalImage, resultImage);
     }
     cv::imshow("result", resultImage);
 }
@@ -225,19 +231,25 @@ void MainWindow::buildDPMat()
     // }
     std::cout << "lol" << std::endl;
     // energyImage = (cv::Mat_<uchar>(5, 5) << 1,2,3,4,5,6,5,2,4,1,3,4,6,2,1,6,3,2,7,15,3,2,44,32,1);
-    DPMat = energyImage;
-    DPPointers = cv::Mat(DPMat.rows-1, DPMat.cols, CV_8SC1);
-    cv::copyMakeBorder(DPMat, DPMat, 0, 0, 1, 1, cv::BORDER_CONSTANT, 255);
+    // std::cout << DPMat << std::endl;
+    std::cout << "dpmat" << std::endl;
+    // std::cout << energyImage << std::endl;
+    std::cout << "energymat" << std::endl;
+    DPPointers.create(energyImage.rows-1, energyImage.cols, CV_8SC1);
+    std::cout << "postassign" << energyImage.rows << energyImage.cols << std::endl;
+    DPMat.create(energyImage.rows, energyImage.cols+2, energyImage.type());
+    std::cout << "preborder" << std::endl;
+    cv::copyMakeBorder(energyImage, DPMat, 0, 0, 1, 1, cv::BORDER_CONSTANT, 255);
     // DPMat = cv::Mat::zeros(energyImage.size(), energyImage.type());
     // energyImage.row(0).copyTo(DPMat.row(0));
-    // std::cout << DPMat << std::endl;
-    cv::Mat mask = (cv::Mat_<uchar>(2, 3) << 1, 1, 1, 0, 0, 0);
+    std::cout << "preloop" << std::endl;
     for (int r = 1; r < DPMat.rows; ++r)
     {
         auto row = DPMat.ptr<uchar>(r);
-        auto prow = DPPointers.ptr<short>(r-1);
+        auto prow = DPPointers.ptr<char>(r-1);
         for (int c = 1; c < DPMat.cols-1; ++c)
         {
+            // std::cout << r << " " << c << std::endl;
             double min;
             cv::Point minLoc;
             cv::minMaxLoc(DPMat(cv::Rect(c-1, r-1, 3, 1)), &min, nullptr, &minLoc);
@@ -245,6 +257,7 @@ void MainWindow::buildDPMat()
             prow[c-1] = minLoc.x-1;
         }
     }
+    std::cout << "postloop" << std::endl;
     // std::cout << mask << std::endl << mask.type() << std::endl;
     // cv::erode(DPMat, DPMat, mask, cv::Point(1, 1), DPMat.rows - 1);
     // std::cout << DPMat << std::endl;
@@ -255,11 +268,13 @@ void MainWindow::buildDPMat()
     int col = minLoc.x;
     for (int r = DPMat.rows-2; r >= 0; --r)
     {
-        col += DPPointers.at<short>(r, col);
+        col += DPPointers.at<char>(r, col);
         originalImage.at<cv::Vec3b>(r, col) = 0;
         energyImage.at<uchar>(r, col) = 255;
     }
+    std::cout << "postloop" << std::endl;
     // std::cout << energyImage << std::endl;
-    cv::imshow("seam", originalImage);
-    cv::imshow("seame", energyImage);
+    // static int j=0;
+    // cv::imshow("seam"+std::to_string(j), originalImage);
+    // cv::imshow("seame"+std::to_string(j++), energyImage);
 }

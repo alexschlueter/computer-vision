@@ -2,3 +2,4 @@
 moc_*
 .qmake.stash
 SeamCarving/SeamCarving
+Makefile

@@ -78,7 +78,7 @@ private:
     void disableGUI();
 
     void calcL1Energy();
-    void buildDPMat();
+    void buildDPMat(const cv::Mat &);
 };
 
 #endif // MAINWINDOW_HPP
